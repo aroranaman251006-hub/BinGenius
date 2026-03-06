@@ -162,12 +162,12 @@ try:
                 conf = float(box.conf[0])
                 name = model.names[cls]
 
-                if conf > 0.40 and name in ITEM_DIRECTION:
+                if conf > 0.40 and name in ITEM_DIRECTION and pending_item is None:
                     print(f"🎯 TRIGGER: {name} detected ({conf:.2f})")
+                    pending_item = name
 
                     if connected_clients and ws_loop is not None:
                         # Send to display and start the 15s timeout
-                        pending_item = name
                         schedule_timeout()
                         payload = json.dumps({"type": "detected", "item": name})
                         for client in list(connected_clients):

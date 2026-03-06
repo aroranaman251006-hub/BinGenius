@@ -275,6 +275,8 @@ const BinGeniusDisplay = () => {
   const wsRef = useRef(null);
   const countdownRef = useRef(null);
   const resetTimerRef = useRef(null);
+  const modeRef = useRef('idle');
+  useEffect(() => { modeRef.current = mode; }, [mode]);
 
   const connectWS = useCallback(() => {
     try {
@@ -285,7 +287,9 @@ const BinGeniusDisplay = () => {
         try {
           const msg = JSON.parse(event.data);
           if (msg.type === 'detected' && MCQ_DATA[msg.item?.toLowerCase()]) {
-            startMCQ(msg.item.toLowerCase());
+            if (modeRef.current === 'idle') {
+              startMCQ(msg.item.toLowerCase());
+            }
           }
         } catch (e) { }
       };
@@ -323,19 +327,22 @@ const BinGeniusDisplay = () => {
     if (mode !== 'mcq') { clearInterval(countdownRef.current); return; }
     countdownRef.current = setInterval(() => {
       setCountdown((prev) => {
-        if (prev <= 1) { clearInterval(countdownRef.current); handleTimeout(); return 0; }
+        if (prev <= 1) { clearInterval(countdownRef.current); return 0; }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(countdownRef.current);
-  }, [mode]);
+  }, [mode, detectedItem]);
 
-  const handleTimeout = () => {
-    const mcq = MCQ_DATA[detectedItem];
-    setMode('timeout');
-    sendToRPi({ type: 'rotate', direction: mcq?.rotateDirection || 'right', reason: 'timeout' });
-    scheduleReset();
-  };
+  // Trigger timeout rotation when countdown reaches 0
+  useEffect(() => {
+    if (mode === 'mcq' && countdown === 0) {
+      const mcq = MCQ_DATA[detectedItem];
+      setMode('timeout');
+      sendToRPi({ type: 'rotate', direction: mcq?.rotateDirection || 'right', reason: 'timeout' });
+      scheduleReset();
+    }
+  }, [countdown, mode, detectedItem]);
 
   const handleOptionSelect = (option) => {
     if (selectedOption) return;
